@@ -15,19 +15,17 @@ I am working alone with this project, due to that I was not able to match any wh
 
 ## Introduction
 
-The team designed an autonomous car that will be tested on the simulator and, then, on Udacity’s real self-driving car (Carla). As introduced in the Udacity walkthrough videos, the project is organized in three parts:
+The following note in the ROS system was developed:
 - the Waypoint Updater;
 - the Drive-By-Wire (DBW);
 - the Traffic Light Detection.
 
-![overview](./imgs/final-project-ros-graph-v2.png "")
 
 
 ## Waypoint Updater
 
-This node is implemented in the [wayppoint_updater.py](/ros/src/waypoint_updater/waypoint_updater.py) file.
+This node is implemented in the wayppoint_updater.py
 
-![waypoint_updater](./imgs/waypoint-updater-ros-graph.png "")
 
 The Waypoint Updater nodes receives initially the original list of waypoints. It then subscribes for constant updates of the vehicle's pose and the next red traffic light position. In order to make the car drive, a list of the next 100 upcoming waypoints (subset of the original list) is published to the Waypoint Follower node at a rate of $5 Hz$.
 
@@ -37,7 +35,6 @@ When approaching a red traffic light (reason to make the car stop in front of), 
 
 The following diagram shows the the origimal square root shaped deceleration function over the distance to the upcoming traffic light, as well as the new cosine based velocity function for smoother transitions and limited maximum acceleration.
 
-![deceleration](./imgs/decelerate2.png "")
 
 Based on the current vehicle speed and desired maximum acceleration the required braking distance is calculated.
 
@@ -61,15 +58,13 @@ $dist = \pi^2 D$
 
 ## Drive-By-Wire (DBW)
 
-This node is implemented in the [dbw_node.py](/ros/src/twist_controller/dbw_node.py) file.
+This node is implemented in the dbw_node.py file
 It's subscribed to the `current_vel`,`twist_cmd` and `dbw_enabled` topics and it publishes the `throttle_cmd`, `brake_cmd` and `steering_cmd` topics.
 
-![dbw](./imgs/dbw-node-ros-graph.png "")
 
 ### Steering
 
-Predictive Steering is implemented using the provided `YawController` class ([yaw_controller.py](/ros/src/twist_controller/yaw_controller.py)).
-
+Predictive Steering is implemented using the provided `YawController` class in yaw_controller.py
 ### Throttle
 Throttle is controlled by a speed control algorithm ([An Intelligent Vehicle Based on an Improved PID Speed Control Algorithm for
 Driving Trend Graphs ](http://ijssst.info/Vol-17/No-30/paper19.pdf)  passing in the square difference between the proposed velocity (`linear_vel`) and the current velocity (`current_vel`) divided by 2 times the distance of 30 meters.
@@ -92,9 +87,9 @@ As we did for throttle, we smooth the final values of brake to increment the com
 
 
 ## Traffic Light Detection
-This node is implemented in the [tl_detector.py](/ros/src/tl_detection/tl_detector.py) file.
+This node is implemented in the tl_detector.py file.
 
-![dbw](./imgs/tl-detector-ros-graph.png "")
+
 
 ### Classifier setup
 
@@ -124,9 +119,7 @@ The Resnet-50 and VGG-19 networks were trained with the following parameters:
 - Random width shift of the image of 2%
 - Random height shift of the image of 5%
 
-The details can be found in [last_layer.ipynb](/train/last_layer.ipynb)
 
-The config file [config.json](/train/config.json) describes which network is trained (the other parameters are defined in the Jupyter notebook)
 
 The initial code came from https://github.com/Gogul09/flower-recognition/blob/master/extract_features.py, but was altered, bug fixed and extended by ourselves for our application.
 
@@ -147,18 +140,6 @@ The JSON files are then processed off-line so that the images with no, red, yell
 | Yellow (orange) traffic lights | 194         |
 | Red traffic lights             | 846         |
 
-#### Parking lot images
-
-Seven sets of images were used:
-
-
-The image info
-
-| Images with:         | \#  of images |
-| -------------------- | ------------- |
-| Green traffic lights | 1035          |
-| No traffic lights    | 875           |
-| Red traffic lights   | 904           |
 
 ### Online traffic light classification
 
