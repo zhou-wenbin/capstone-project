@@ -3,7 +3,9 @@
 This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
 
 
-## Team "LetsGetItDone"
+## Team 
+
+I am working alone with this project, due to that I was not able to match any who has the same schedue with me
 
 | Name                | E-Mail                   |
 | ------------------- | ------------------------ |
@@ -134,9 +136,9 @@ MobileNet, InceptionV3 and XCeption were used as well, but the results were wors
 
 #### Simulator images
 
-Images were recording while driving the simulator mountain track manually. The function *process_traffic_lights()* in [tl_detector.py](/ros/src/tl_detection/tl_detector.py) was adapted so that it stores the images fed to the ROS node. For each image that is saved, also a JSON file is created containing metadata like the states of the traffic light and the distance to the stopping line of the next traffic light.
+Images were recording while driving the simulator mountain track manually. The function *process_traffic_lights()* in ```tl_detector.py``` was adapted so that it stores the images fed to the ROS node. For each image that is saved, also a JSON file is created containing metadata like the states of the traffic light and the distance to the stopping line of the next traffic light.
 
-The JSON files are then processed off-line in [group_files_with_light_state.ipynb](/train/group_files_with_light_state.ipynb) so that the images with no, red, yellow or green traffic lights are grouped in separate folders to be able to use the Keras ImageDataGenerator as a training/validation batch generator. It was assumed that if a stopping line was in a distance of 250 waypoints in front of the car that the traffic lights were visible inside the camera image. On the other hand, it was assumed that if a stopping line was more than 500 waypoints away from the camera image that no traffic light would be visible inside the camera image. Any image recorded in between 250 and 500 waypoints away from a stopping line was discarded, as it is uncertain if the traffic light is visible and if the colour of the traffic light is visible after downscaling.
+The JSON files are then processed off-line so that the images with no, red, yellow or green traffic lights are grouped in separate folders to be able to use the Keras ImageDataGenerator as a training/validation batch generator. It was assumed that if a stopping line was in a distance of 250 waypoints in front of the car that the traffic lights were visible inside the camera image. On the other hand, it was assumed that if a stopping line was more than 500 waypoints away from the camera image that no traffic light would be visible inside the camera image. Any image recorded in between 250 and 500 waypoints away from a stopping line was discarded, as it is uncertain if the traffic light is visible and if the colour of the traffic light is visible after downscaling.
 
 | Images with:                   | # of images |
 | ------------------------------ | ----------- |
@@ -149,19 +151,8 @@ The JSON files are then processed off-line in [group_files_with_light_state.ipyn
 
 Seven sets of images were used:
 
-- The images provided by the ROS bag file from Udacity
-- 6 sets of images from MPEG recordings from other team runs:
-  - https://www.youtube.com/watch?v=V8U5_2SFdJs
-  - https://www.youtube.com/watch?v=1TjhlsXzrqU
-  - https://www.youtube.com/watch?v=fGNzEqoeZtY
-  - https://vimeo.com/241961307
-  - https://www.youtube.com/watch?v=EDtal9m3cT0
-  - https://www.youtube.com/watch?v=thgOUyZodPs
-  - The notebook [convert_mpeg_to_jpeg.ipynb](/train/convert_mpeg_to_jpeg.ipynb) was used to extract JPEG files and scale them up to 800x600
 
-The images were manually grouped in separate subfolders (to prepare them for the Keras ImageDataGenerator)
-
-The notebook [prune_files.ipynb](/train/prune_files.ipynb) was then used to balance out the data set so that the number of images with green, red and no traffic light were more or less the same.
+The image info
 
 | Images with:         | \#  of images |
 | -------------------- | ------------- |
@@ -171,21 +162,11 @@ The notebook [prune_files.ipynb](/train/prune_files.ipynb) was then used to bala
 
 ### Online traffic light classification
 
-The traffic light classifiers are implemented in [tl_classifier.py](/ros/src/tl_detection/light_classifier/tl_classifier.py) for the simulator and [tl_classifier_site.py](/ros/src/tl_detection/light_classifier/tl_classifier_site.py) for the parking lot.
 
 The classifier for the simulator performs well, so that we can use a probability threshold of 0.9 to decide if the network's prediction is reliable or not.
 
-The classifier for the site / parking lot performs not so well for green light detection (10% miss-classification on a test set without any probability thresholding),  so a probability threshold of 0.8 is used for this classifier and even no threshold at all in case of a predicted green light.
 
-### Other techniques
 
-First off, a similar approach (transfer learning) was tried out using pre-trained models from Tensorflow-Hub. This was implemented in [retrain.ipynb](/train/retrain.ipynb). Unfortunately, we found out that the models trained with Tensorflow 1.5 are not backward compatible, so they could not be used in Tensorflow 1.3
-
-Also, a lot of project teams are using object detection. We decided to go for image classification, because:
-
-- It's easier to automatically annotate/label the images. Otherwise, bounding boxes around traffic lights had to be drawn. In the meanwhile, we found out that a tool like Vatic (https://github.com/cvondrick/vatic) could help a lot, because bounding boxes could be interpolated just using a couple of reference images.
-- Image classification is a lot faster than object detection. We don't have to skip any images, because inference is happening at 16 Hz on the workspace. We assume that the GPU in Carla is performing a lot better, so even if images come in at a higher frequency than in the simulator, this won't cause problems.
-- Well ... it's not really a challenge to mimic what other project teams do :)
 
 ## Setup
 
@@ -247,19 +228,5 @@ roslaunch launch/styx.launch
 4. Run the simulator
 
 ### Real world testing
-1. Download [training bag](https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/traffic_light_bag_file.zip) that was recorded on the Udacity self-driving car.
-2. Unzip the file
-```bash
-unzip traffic_light_bag_file.zip
-```
-3. Play the bag file
-```bash
-rosbag play -l traffic_light_bag_file/traffic_light_training.bag
-```
-4. Launch your project in site mode
-```bash
-cd CarND-Capstone/ros
-roslaunch launch/site.launch
-```
-5. Confirm that traffic light detection works on real life images
-"# First-sketch-last-project-SDC"
+
+This part has been cancelled indefinitely.
