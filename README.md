@@ -14,7 +14,7 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 | Chunhai Yu           | qingluchenliu123@gmail.com  |
 | Michael Piehl          | piehlm@yahoo.com |
 |     Mengwei Yin              |mwyin@hotmail.com|
-|       ?        |       ?    |
+| Jacob Hwang        | yz0624@gmail.com    |
 
 
 
