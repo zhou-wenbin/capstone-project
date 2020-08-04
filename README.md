@@ -21,8 +21,7 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 
 
 
-## Current problems
-1. Latency and run out of road when turning on camera in Simulator
+
 
 ## Setup
 
