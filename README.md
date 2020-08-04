@@ -5,7 +5,6 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 
 ## Team 
 
-I am working alone with this project, due to that I was not able to match any who has the same schedue with me
 
 
 
