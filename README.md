@@ -7,144 +7,19 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 
 I am working alone with this project, due to that I was not able to match any who has the same schedue with me
 
+
+
 | Name                | E-Mail                   |
 | ------------------- | ------------------------ |
 | Wenbin Zhou             | zhou.wenbin.x@gmail.com  |
+| Chunhai Yu           | qingluchenliu123@gmail.com  |
+| Michael Piehl          | piehlm@yahoo.com |
+|     Mengwei Yin              |mwyin@hotmail.com|
+|       ?        |       ?    |
 
 
 
-## Introduction
 
-The following note in the ROS system was developed:
-- the Waypoint Updater;
-- the Drive-By-Wire (DBW);
-- the Traffic Light Detection.
-
-
-
-## Waypoint Updater
-
-This node is implemented in the wayppoint_updater.py
-
-
-The Waypoint Updater nodes receives initially the original list of waypoints. It then subscribes for constant updates of the vehicle's pose and the next red traffic light position. In order to make the car drive, a list of the next 100 upcoming waypoints (subset of the original list) is published to the Waypoint Follower node at a rate of $5 Hz$.
-
-In order to achieve this, the index of the next waypoint has to be determined, using an efficient lookup featuring a KDTree data structure.
-
-When approaching a red traffic light (reason to make the car stop in front of), a shaping function is applied to the velocity of the pusblished waypoints.
-
-The following diagram shows the the origimal square root shaped deceleration function over the distance to the upcoming traffic light, as well as the new cosine based velocity function for smoother transitions and limited maximum acceleration.
-
-
-Based on the current vehicle speed and desired maximum acceleration the required braking distance is calculated.
-
-Target speed ($40 km/h  \cong 11 m/s$, blue curve)
-
-Original velocity profile (green curve):
-$v_{new}(x) = min \Big( v_{current}, 1.5 \cdot \sqrt{2 \cdot \text{accel}_{max} · \text{distance}} \Big)$
-
-New velocity profile with smoother begin/end (violet curve):
-$v_{new}(x) = \frac{v}{2} (1 - cos(\frac{x}{2 \pi D} ))$
-
-Deceleration over time (red curve):
-$a = \frac{dv_{new}(x)}{dx} = \frac{v}{2} \frac{1}{2 \pi D} sin(\frac{x}{2 \pi D})$
-
-Deceleration factor, based on current speed and desired maximum acceleration:
-$D = \frac{v}{2} \frac{1}{2 \pi a_{max}}$
-
-The required braking distance:
-$dist = \pi^2 D$
-
-
-## Drive-By-Wire (DBW)
-
-This node is implemented in the dbw_node.py file
-It's subscribed to the `current_vel`,`twist_cmd` and `dbw_enabled` topics and it publishes the `throttle_cmd`, `brake_cmd` and `steering_cmd` topics.
-
-
-### Steering
-
-Predictive Steering is implemented using the provided `YawController` class in yaw_controller.py
-### Throttle
-Throttle is controlled by a speed control algorithm ([An Intelligent Vehicle Based on an Improved PID Speed Control Algorithm for
-Driving Trend Graphs ](http://ijssst.info/Vol-17/No-30/paper19.pdf)  passing in the square difference between the proposed velocity (`linear_vel`) and the current velocity (`current_vel`) divided by 2 times the distance of 30 meters.
-The positive value that returns this algorithm are the throttle values of the car. We smooth the final values of throttle implementing these lines of code:
-```
-if (throttle > 0.05) and (throttle - self.last_throttle) > 0.005:
-  throttle = max((self.last_throttle + 0.0025), 0.005)
-if throttle > 0.05 and (throttle - self.last_throttle) < -0.05:
-  throttle = self.last_throttle - 0.05
-```
-
-### Brake
-When the algorithm returns a negative value for throttle, it means the car needs to decelerate. The amount of deceleration needed is calculated in these two lines of code:
-```
-decel = max((smooth_acc * 5), self.decel_limit)
-brake = abs(decel) * self.vehicle_mass * self.wheel_radius # Torque N*m
-```
-`brake` is the amount of torque that is applied to the brake system to decrease the car's speed.
-As we did for throttle, we smooth the final values of brake to increment the comfort and avoid excessive variation of acceleration.
-
-
-## Traffic Light Detection
-This node is implemented in the tl_detector.py file.
-
-
-
-### Classifier setup
-
-We used image classification (so not object detection) to classify images that contain a red, green, yellow or no traffic light.
-
-The current setup uses Tensorflow-GPU 1.3 and Keras 2.0.8. Classic models that are available in the Keras applications library were used for transfer learning.
-
-The classifier for the simulator is a Resnet-50 network where feature extraction is applied (the last output layer is stripped off). This classifier is extended with an average pooling layer, a dense layer of 1024 nodes with RELU activation, followed by another dense layer with 4 nodes with soft-max activation. The 4 nodes are one-hot encoded outputs that decide if the input image fed to the network contains a "green light", "no light", "yellow light" or "red light". The input images are scaled down first to 224x224. Then, "Imagenet" pre-processing is applied to normalize the colour values. 
-
-The classifier for the parking lot is a VGG19 network where feature extraction is applied. This classifier is extended with an average pooling layer, a dense layer of 512 nodes with RELU activation, followed by a dropout layer with drop rate 0.2, then another dense layer of 128 nodes with RELU activation, again a dropout layer with drop rate 0.2, and finally a dense layer with 3 nodes with soft-max activation. The 3 nodes are one-hot encoded outputs that decide if the input image fed to the network contains a "green light", "no light" or "red light". The "yellow light" case is not covered. The input images are scaled down to 224x224. Then, "Imagenet" pre-processing is applied to normalize the colour values. 
-
-### Training the networks
-
-The Resnet-50 and VGG-19 networks were trained with the following parameters:
-
-- The layers that were already trained on Imagenet had their weights frozen
-- L2 regularization was applied on the weights of the dense layers that have been appended to the network with penalization 0.01 
-- An Adam optimizer was used for weight updates
-- A learning rate of 0.001 (other learning rate values didn't perform better)
-- Categorical cross entropy was used as the cost function
-- 100 epochs with early stopping after 20 epochs without validation accuracy improvement (to avoid overfitting)
-- 80/20 training/validation set split with random shuffling
-- Batch size 4 (determined experimentally - balance in between efficiency, shared memory size and overfitting reduction, see: https://arxiv.org/abs/1609.04836)
-- Random horizontal flipping of the image for the parking lot set (not for the simulator)
-- No random zooming (because some images already have the traffic light close to the edge of the image)
-- Random rotation of the image up to 3 degrees
-- Random width shift of the image of 2%
-- Random height shift of the image of 5%
-
-
-
-The initial code came from https://github.com/Gogul09/flower-recognition/blob/master/extract_features.py, but was altered, bug fixed and extended by ourselves for our application.
-
-MobileNet, InceptionV3 and XCeption were used as well, but the results were worse or similar.
-
-### Input data
-
-#### Simulator images
-
-Images were recording while driving the simulator mountain track manually. The function *process_traffic_lights()* in ```tl_detector.py``` was adapted so that it stores the images fed to the ROS node. For each image that is saved, also a JSON file is created containing metadata like the states of the traffic light and the distance to the stopping line of the next traffic light.
-
-The JSON files are then processed off-line so that the images with no, red, yellow or green traffic lights are grouped in separate folders to be able to use the Keras ImageDataGenerator as a training/validation batch generator. It was assumed that if a stopping line was in a distance of 250 waypoints in front of the car that the traffic lights were visible inside the camera image. On the other hand, it was assumed that if a stopping line was more than 500 waypoints away from the camera image that no traffic light would be visible inside the camera image. Any image recorded in between 250 and 500 waypoints away from a stopping line was discarded, as it is uncertain if the traffic light is visible and if the colour of the traffic light is visible after downscaling.
-
-| Images with:                   | # of images |
-| ------------------------------ | ----------- |
-| Green traffic lights           | 645         |
-| No traffic lights              | 897         |
-| Yellow (orange) traffic lights | 194         |
-| Red traffic lights             | 846         |
-
-
-### Online traffic light classification
-
-
-The classifier for the simulator performs well, so that we can use a probability threshold of 0.9 to decide if the network's prediction is reliable or not.
 
 
 
