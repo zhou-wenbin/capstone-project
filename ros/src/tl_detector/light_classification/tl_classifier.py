@@ -1,45 +1,52 @@
+#!/usr/bin/env python
+
 from styx_msgs.msg import TrafficLight
 
-from keras.applications.resnet50 import ResNet50, preprocess_input as res_preprocess
-from keras.models import Model
-from keras.layers import Input, Dense, GlobalAveragePooling2D
-import numpy as np
-import glob
 import cv2
-import h5py
-import os
-import json
-import datetime
-import time
-from random import shuffle
+import numpy as np
 import tensorflow as tf
-import rospy
+import datetime
 
-CLASSIFICATION_PROB_THRESHOLD = 0.90
+
+import rospy
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
 
 class TLClassifier(object):
-    def __init__(self):
-        num_classes = 4
-        base_model = ResNet50(weights=None, include_top=False)
-        x = base_model.output
-        x = GlobalAveragePooling2D()(x)
-        x = Dense(1024, activation="relu")(x)
-        predictions = Dense(num_classes, activation="softmax")(x)
-        self.model_final = Model(inputs = base_model.input, outputs = predictions)
+    def __init__(self, is_simulation):
+        '''
+        self.image_pub = rospy.Publisher("image_topic_2",Image)
+        self.bridge = CvBridge()
+        '''
 
-        sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+        if is_simulation:
+            self.MODEL_NAME = 'light_classification/frozen-ssd_inception-simulation'
+        else:
+            self.MODEL_NAME = 'light_classification/frozen-ssd_inception-site'
 
-        cwd = os.path.dirname(os.path.realpath(__file__))
-        rospy.loginfo('TLC cwd %s', cwd)
-        self.model_final.load_weights(cwd + '/resnet50_5.h5')
+        self.PATH_TO_FROZEN_GRAPH = self.MODEL_NAME + '/frozen_inference_graph.pb'
 
-        self.graph = tf.get_default_graph()
-        
-        self.labels_dict = {'green': 0, 'no': 1, 'orange': 2, 'red': 3}
-        self.labels = ['green', 'no', 'orange', 'red']
+        #load classifier
+        # Load a (frozen) Tensorflow model into memory.
+        self.detection_graph = tf.Graph()
+        with self.detection_graph.as_default():
+            od_graph_def = tf.GraphDef()
+            with tf.gfile.GFile(self.PATH_TO_FROZEN_GRAPH, 'rb') as fid:
+                serialized_graph = fid.read()
+                od_graph_def.ParseFromString(serialized_graph)
+                tf.import_graph_def(od_graph_def, name='')
 
-        self.model_loaded = 1
-        rospy.loginfo("TLC Classification model (sim) loaded.")
+            self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+            self.boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+            self.scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
+            self.classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
+            self.num_detections = self.detection_graph.get_tensor_by_name(
+                'num_detections:0')
+ 
+        self.session = tf.Session(graph=self.detection_graph)
+        self.threshold = 0.5
+    
 
     def get_classification(self, image):
         """Determines the color of the traffic light in the image
@@ -52,43 +59,59 @@ class TLClassifier(object):
 
         """
 
-        start_time = datetime.datetime.now()
+        # convert to rgb image
+        #image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+        image_rgb = image
 
-        # preprocessing image
-        im = image
-        im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-        im = im.astype(np.float64)
-        image_size = (224, 224)
-        im = cv2.resize(im, image_size, interpolation = cv2.INTER_CUBIC)
-        im = res_preprocess(im)
-        im = np.expand_dims(im, axis =0)
+        '''
+	      # image normalization
+        img_yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
 
-        # predict traffic light state
-        if self.model_loaded:
-            with self.graph.as_default():
-                prob = self.model_final.predict(im)
-                probs = prob[0]
-                j = np.argmax(prob, axis=1)[0]
+        # equalize the histogram of the Y channel
+        img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
 
-                end_time = datetime.datetime.now()
-                time_diff = end_time - start_time
+        # convert the YUV image back to RGB format
+        image_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
 
-                #rospy.loginfo('Best guess: %s with certainty %f' % (self.labels[j], probs[j]))
-                #rospy.loginfo('Time to run: ' + str(time_diff))
+        #cv2.imshow('Color input image', image)
+        #cv2.imshow('Histogram equalized', image_rgb)
 
-                if probs[j] > CLASSIFICATION_PROB_THRESHOLD:
-                    if j == 0:
-                        #rospy.loginfo('Get classification function - Returning green.')
-                        return TrafficLight.GREEN
-                        
-                    elif j == 1:
-                        #rospy.loginfo('Get classification function - Returning no.')
-                        return TrafficLight.UNKNOWN
-                    elif j == 2:
-                        #rospy.loginfo('Get classification function - Returning yellow.')
-                        return TrafficLight.YELLOW
-                    elif j == 3:
-                        #rospy.loginfo('Get classification function - Returning red.')
-                        return TrafficLight.RED
+        #cv2.waitKey(0)
+           
+
+        image_rgb = image
+        self.image_pub.publish(self.bridge.cv2_to_imgmsg(image_rgb, "rgb8"))
+        '''
+
+        with self.detection_graph.as_default():
+            image_expand = np.expand_dims(image_rgb, axis=0)
+            start_classification_t = datetime.datetime.now()
+
+            (boxes, scores, classes, num_detections) = self.session.run(
+                [self.boxes, self.scores, self.classes, self.num_detections],
+                feed_dict={self.image_tensor: image_expand})
+
+            end_classification_t = datetime.datetime.now()
+            elapsed_time = end_classification_t - start_classification_t
+
+            #print("Classification took:", elapsed_time.total_seconds())
+
+        boxes = np.squeeze(boxes)
+        scores = np.squeeze(scores)
+        classes = np.squeeze(classes).astype(np.int32)
+
+        #print('Best class: ', classes[0])
+        #print('Best score: ', scores[0])
+
+        if scores[0] > self.threshold:
+            if classes[0] == 1:
+                print('Traffic Light is: GREEN')
+                return TrafficLight.GREEN
+            elif classes[0] == 2:
+                print('Traffic Light is: RED')
+                return TrafficLight.RED
+            elif classes[0] == 3:
+                print('Traffic Light is: YELLOW')
+                return TrafficLight.YELLOW
 
         return TrafficLight.UNKNOWN
